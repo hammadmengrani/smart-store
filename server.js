@@ -43,12 +43,14 @@ app.use("/carts", cartRoute);
 app.use("/users", userRoute);
 app.use("/auth", authRoute);
 
-const sockConnections = [];
+var sockConnections = [];
 
 // Socket connection
 io.on("connection", (socket) => {
   socket.on("onTrolly", (trolly) => {
+    console.log("Connected to Trolly");
     sockConnections.push(socket);
+    socket.emit("onTrolly", trolly);
   });
 
   socket.on("onItemAdded", (item) => {
@@ -59,8 +61,10 @@ io.on("connection", (socket) => {
     console.log("onItemRemoved", item);
   });
 
-  socket.on("disconnect", () => {
+  socket.on("disconnect", (reason) => {
+    console.log("Disconnected from Trolly");
     sockConnections = sockConnections.filter((s) => s.id !== socket.id);
+    socket.emit("unplug", "disconnected");
   });
 });
 
