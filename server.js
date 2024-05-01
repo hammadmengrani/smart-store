@@ -47,23 +47,31 @@ var sockConnections = [];
 
 // Socket connection
 io.on("connection", (socket) => {
-  socket.on("onTrolly", (trolly) => {
-    console.log("Connected to Trolly");
-    sockConnections.push(socket);
-    socket.emit("onTrolly", trolly);
+  socket.on("onTrolly", (trolley) => {
+    console.log("Connected to Trolly", trolley);
+    sockConnections.push({id: socket.id, trolleyId: trolley, socket });
+    socket.emit("onTrolly", trolley);
   });
 
   socket.on("onItemAdded", (item) => {
-    console.log("onItemAdded", item);
+    const clients = sockConnections
+    .filter(s => s.trolleyId == item.trolleyId)
+    for(const sock of clients){
+      sock?.socket.emit("onItemAdded", item)
+    }
   });
 
   socket.on("onItemRemoved", (item) => {
-    console.log("onItemRemoved", item);
+    const clients = sockConnections
+    .filter(s => s.trolleyId == item.trolleyId)
+    for(const sock of clients){
+      sock?.socket.emit("onItemRemoved", item)
+    }
   });
 
   socket.on("disconnect", (reason) => {
-    console.log("Disconnected from Trolly");
-    sockConnections = sockConnections.filter((s) => s.id !== socket.id);
+    console.log("Disconnected from Trolly");   
+    sockConnections =  sockConnections.filter(a => a.trolleyId == sockConnections.find((s) => s.id !== socket.id))?.trolleyId || [];
     socket.emit("unplug", "disconnected");
   });
 });
