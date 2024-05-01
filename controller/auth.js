@@ -3,16 +3,18 @@ const jwt = require('jsonwebtoken');
 
 module.exports.login = (req, res) => {
 	const username = req.body.username;
-	const password = req.body.password;
-	if (username && password) {
-		User.findOne({
-			username: username,
-			password: password,
-		})
+	const email = req.body.email; 
+  const password = req.body.password;
+	if ((username || email) && password) {
+		User.findOne({ $or: [{username: username}, {email: email}], password: password })
 			.then((user) => {
 				if (user) {
 					res.json({
-						token: jwt.sign({ user: username }, 'secret_key'),
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            phone: user.phone,
+						token: jwt.sign({ user: username || email }, 'secret_key'),
 					});
 				} else {
 					res.status(401);
