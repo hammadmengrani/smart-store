@@ -2,6 +2,7 @@
 const mongoose = require("mongoose");
 const express = require("express");
 const { Server } = require("socket.io");
+const mqtt = require("mqtt");
 const cors = require("cors");
 const path = require("path");
 const dotenv = require("dotenv");
@@ -44,35 +45,50 @@ app.use("/users", userRoute);
 app.use("/auth", authRoute);
 
 var sockConnections = [];
+const mqttClient = new mqtt.connect("mqtt://localhost:1883");
+mqttClient.on("connect", function(){
+  console.log("Service broker connected.");
+});
+
+mqttClient.on("message", function(topic, message){
+  try{
+    const socks = sockConnections.filter(s => s.trolleyId == topic)
+    for(const sock of socks){
+      io.sockets.sockets.get(sock.id).emit("onItem", String(message));
+    }
+    console.log(topic, String(message));
+  }catch(err){
+
+  }
+});
 
 // Socket connection
 io.on("connection", (socket) => {
   socket.on("onTrolly", (trolley) => {
     console.log("Connected to Trolly", trolley);
-    sockConnections.push({id: socket.id, trolleyId: trolley, socket });
+    const _sock = sockConnections.find(s => s.trolleyId == trolley);
+    if(_sock){
+      _sock.id = socket.id;
+      _sock.socket = socket;
+    }else{
+      sockConnections.push({id: socket.id, trolleyId: trolley, socket });
+    }
+    
     socket.emit("onTrolly", trolley);
-  });
-
-  socket.on("onItemAdded", (item) => {
-    const clients = sockConnections
-    .filter(s => s.trolleyId == item.trolleyId)
-    for(const sock of clients){
-      sock?.socket.emit("onItemAdded", item)
-    }
-  });
-
-  socket.on("onItemRemoved", (item) => {
-    const clients = sockConnections
-    .filter(s => s.trolleyId == item.trolleyId)
-    for(const sock of clients){
-      sock?.socket.emit("onItemRemoved", item)
-    }
+    mqttClient.subscribe(trolley);
+    // zab-e-mart-trolly-1
   });
 
   socket.on("disconnect", (reason) => {
-    console.log("Disconnected from Trolly");   
-    sockConnections =  sockConnections.filter(a => a.trolleyId == sockConnections.find((s) => s.id !== socket.id))?.trolleyId || [];
-    socket.emit("unplug", "disconnected");
+    try{
+      console.log("Disconnected from Trolly");   
+      socket.emit("unplug", "disconnected");
+      const trolleyId = sockConnections.find((s) => s.id !== socket.id)?.trolleyId;
+      sockConnections =  sockConnections.filter(a => a.trolleyId == sockConnections.find((s) => s.id !== socket.id))?.trolleyId || [];
+      mqttClient.unsubscribe(trolleyId);
+    }catch(err){
+
+    }
   });
 });
 

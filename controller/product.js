@@ -13,16 +13,24 @@ module.exports.getAllProducts = (req, res) => {
 		.catch((err) => console.log(err));
 };
 
+module.exports.getRandomProduct = (req, res) => {
+	Product.aggregate([{ $sample: { size: 1 } }])
+	.then((product) => {
+		res.json(product);
+	})
+	.catch((err) => console.log(err));
+}
+
 module.exports.getProduct = (req, res) => {
 	const id = req.params.id;
 
 	Product.findOne({
 		id,
 	})
-		.then((product) => {
-			res.json(product);
-		})
-		.catch((err) => console.log(err));
+	.then((product) => {
+		res.json(product);
+	})
+	.catch((err) => console.log(err));
 };
 
 module.exports.getProductCategories = (req, res) => {
